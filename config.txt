@@ -1,0 +1,2 @@
+WATCH_DIRECTORY=D:/Uni/Semester 4/DBS
+TARGET_DIRECTORY=D:/Uni/Semester 4/DBS/Organized_Files
