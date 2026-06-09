@@ -1,6 +1,7 @@
 import time
 import os
 import shutil
+import sqlite3 as sq
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -21,11 +22,26 @@ def load_config(p="config.txt"):
                 config[key.strip()] = os.path.expanduser(value.strip())
     return config
 
+def get_types(f="datatypes.db"):
+    if not os.path.exists(f):
+        print("Error, datatypes file not found")
+        exit()
+    con = sq.connect(f)
+    cursor = con.cursor()
+    cursor.execute("""
+        SELECT dt.Type, c.Category
+        FROM DataTypes dt
+        JOIN Categories c ON dt.Category_ID = c.Category_ID
+    """)
+    types_dict = {row[0]: row[1] for row in cursor}
+    con.close()
+    return types_dict
 
 class FileHandler(FileSystemEventHandler):
-    def __init__(self, target_dir):
+    def __init__(self, target_dir, types_dict):
         super().__init__()
         self.target_directory = target_dir
+        self.types_dict = types_dict
 
     def on_created(self, event):
         if event.is_directory:
@@ -44,18 +60,10 @@ class FileHandler(FileSystemEventHandler):
         try:
             _, ext = os.path.splitext(fname)
             ext = ext.lower()
-
-            if ext in ['.py', '.js', '.html', '.css']:
-                dest = os.path.join(self.target_directory, "Developer")
-            elif ext in ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp']:
-                dest = os.path.join(self.target_directory, "Pictures_n_GIFS")
-            elif ext in ['.pdf', '.doc', '.docx', '.pptx']:
-                dest = os.path.join(self.target_directory, "Documents")
-            elif ext in ['.mp4', '.avi']:
-                dest = os.path.join(self.target_directory, "Video")
-            else:
-                dest = os.path.join(self.target_directory, "Other")
-                
+            category = self.types_dic.get(ext)
+            if category is None:
+                category = 'Other'
+            dest = os.path.join(self.target_directory, category)
             os.makedirs(dest, exist_ok=True)
             shutil.move(fpath, os.path.join(dest, fname))
             print(f"Moved {fname} to folder {dest}")
@@ -78,7 +86,7 @@ if __name__ == "__main__":
     CONFIG = load_config(config_path)
     WATCH_DIRECTORY = CONFIG.get("WATCH_DIRECTORY")
     TARGET_DIRECTORY = CONFIG.get("TARGET_DIRECTORY")
-
+    TYPES_DICT = get_types()
     if not WATCH_DIRECTORY or not TARGET_DIRECTORY:
         print("either no watch directoy or target directory, or both DNE")
         exit(1)
@@ -86,7 +94,7 @@ if __name__ == "__main__":
     os.makedirs(WATCH_DIRECTORY, exist_ok=True)
     os.makedirs(TARGET_DIRECTORY, exist_ok=True)
 
-    event_handler = FileHandler(TARGET_DIRECTORY)
+    event_handler = FileHandler(TARGET_DIRECTORY,TYPES_DICT)
     event_handler.organize_existing(WATCH_DIRECTORY)
     observer = Observer()
     observer.schedule(event_handler, WATCH_DIRECTORY, recursive=False)
