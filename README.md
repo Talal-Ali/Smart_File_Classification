@@ -4,7 +4,7 @@ A Python-based file organization tool that automatically sorts and categorizes f
 
 ## Overview
 
-Smart File Classification is a lightweight utility designed to help you organize directories by automatically categorizing files into folders based on their file extensions. The system watches directories for new files, organizes existing files, and provides extensibility through configuration and database support.
+Smart File Classification is a lightweight utility designed to help you organize directories by automatically categorizing files into folders based on their file extensions. The system watches directories in real-time and features a user-friendly UI for configuration and dynamic category management, backed by a robust database for extensible file type support.
 
 ## 🎯 Key Features
 
@@ -13,8 +13,11 @@ Smart File Classification is a lightweight utility designed to help you organize
 - **Real-Time Monitoring**: Watches directories and automatically sorts new files as they arrive
 - **Batch Processing**: Organize all existing files in a directory with a single command
 - **Safe Organization**: Creates category folders automatically if they don't exist
+- **Database-Driven Architecture**: Manage file type mappings efficiently with database support
+- **Dynamic Categories**: Create, modify, and manage custom file categories on-the-fly
+- **Settings UI**: User-friendly interface for configuring directories and file type mappings
 - **Configuration-Driven**: Simple config file for specifying watch and target directories
-- **Extensible Architecture**: Foundation ready for database and custom category support
+- **Extensible Architecture**: Foundation ready for advanced customization and integrations
 
 ## 📋 Scope & Roadmap
 
@@ -24,19 +27,23 @@ Smart File Classification is a lightweight utility designed to help you organize
 - [x] Batch processing of existing files
 - [x] Configuration file support
 - [x] Automatic folder creation
+- [x] **Database Implementation** - Persistent storage for file type mappings
+- [x] **UI for Settings** - User-friendly interface for configuration management
+- [x] **Dynamic Categories** - Create and modify categories without code changes
 
 ### 🚀 Planned Features
-- [ ] **GUI Interface**: Simple button-based file explorer integration for one-click organization
-- [ ] **Database Support**: Read file type mappings from a database for managing vast amounts of file types
-- [ ] **Custom Categories**: Allow users to define their own file types and categories
-- [ ] **Undo Functionality**: Ability to revert file movements
+- [ ] **GUI Interface**: Full-featured graphical interface with drag-and-drop support
 - [ ] **Advanced Filtering**: Filter files by date, size, or custom criteria
+- [ ] **Undo Functionality**: Ability to revert file movements
 - [ ] **System Tray Integration**: Windows Explorer context menu integration
+- [ ] **Logging & Analytics**: Track file organization history and statistics
+- [ ] **Multi-Profile Support**: Save and switch between different organization profiles
 
 ## 📥 Installation
 
 ### Requirements
 - Python 3.6+
+- SQLite3 (or compatible database)
 
 ### Dependencies
 ```bash
@@ -60,6 +67,7 @@ pip install -r requirements.txt
 
 ## ⚙️ Configuration
 
+### Via Configuration File
 Edit `config.txt` to specify your watch and target directories:
 
 ```
@@ -70,6 +78,13 @@ TARGET_DIRECTORY=C:/Users/YourName/Downloads/Organized_Files
 - **WATCH_DIRECTORY**: The folder where new files appear (files here will be organized)
 - **TARGET_DIRECTORY**: Where organized files will be sorted into category subfolders
 
+### Via Settings UI
+Launch the settings interface to:
+- Configure watch and target directories
+- View and manage file type mappings
+- Create and modify custom categories
+- Update database settings
+
 ## 🚀 Usage
 
 ### Run the Organizer
@@ -78,10 +93,22 @@ python Smart_File_Classification_System.py
 ```
 
 The script will:
-1. Load your configuration
+1. Load your configuration from the database or config file
 2. Organize all existing files in the watch directory
 3. Start monitoring for new files
-4. Press `Ctrl+C` to stop
+4. Open the settings UI for real-time adjustments
+5. Press `Ctrl+C` to stop
+
+### Open Settings UI
+```bash
+python settings_ui.py
+```
+
+Manage all aspects of file organization through the graphical interface:
+- Add/remove file extensions
+- Create custom categories
+- Configure directory paths
+- Preview organization rules
 
 ### Example
 
@@ -97,15 +124,18 @@ python Smart_File_Classification_System.py
 
 ## 📂 Supported Categories
 
-The tool organizes files into the following categories:
+The tool organizes files into the following categories (customizable via database):
 
-| Category | Extensions |
+| Category | Sample Extensions |
 |----------|-----------|
 | **Documents** | `.pdf`, `.doc`, `.docx`, `.pptx`, `.txt`, `.xlsx`, etc. |
 | **Pictures_n_GIFS** | `.jpg`, `.jpeg`, `.png`, `.gif`, `.svg`, `.webp`, etc. |
 | **Developer** | `.py`, `.js`, `.html`, `.css`, `.java`, `.cpp`, etc. |
 | **Video** | `.mp4`, `.avi`, `.mov`, `.mkv`, `.wmv`, etc. |
+| **Audio** | `.mp3`, `.wav`, `.flac`, `.aac`, etc. |
 | **Other** | Files that don't fit into above categories |
+
+**Note**: Categories are now stored in the database and can be easily modified through the settings UI.
 
 ## 🏗️ Project Structure
 
@@ -113,7 +143,10 @@ The tool organizes files into the following categories:
 Smart_File_Classification/
 ├── README.md                              # This file
 ├── Smart_File_Classification_System.py    # Main script with file monitoring
+├── settings_ui.py                         # Settings UI for configuration management
+├── database.py                            # Database management module
 ├── config.txt                             # Configuration file (user-customizable)
+├── file_categories.db                     # SQLite database (auto-generated)
 ├── Datatypes.xlsx                         # Reference file type mappings
 ├── requirements.txt                       # Python dependencies
 └── .gitattributes                         # Git configuration
@@ -121,29 +154,34 @@ Smart_File_Classification/
 
 ## 🔄 How It Works
 
-1. **Loads Configuration**: Reads watch and target directories from `config.txt`
-2. **Organizes Existing Files**: Scans and categorizes all files already in the watch directory
-3. **Monitors for New Files**: Watches the directory for newly created or added files
-4. **Identifies Extensions**: Extracts file extensions and matches them to categories
-5. **Creates Folders**: Automatically creates category folders if needed
-6. **Moves Files**: Transfers files to their corresponding category folders
-7. **Logs Activity**: Prints organized file information to the console
+1. **Loads Configuration**: Reads watch and target directories from `config.txt` or database
+2. **Database Initialization**: Sets up SQLite database for file type mappings and categories
+3. **Organizes Existing Files**: Scans and categorizes all files already in the watch directory
+4. **Monitors for New Files**: Watches the directory for newly created or added files
+5. **Identifies Extensions**: Extracts file extensions and matches them to categories via database
+6. **Creates Folders**: Automatically creates category folders if needed
+7. **Moves Files**: Transfers files to their corresponding category folders
+8. **Logs Activity**: Prints organized file information to the console
+9. **Supports Dynamic Updates**: Changes to categories take effect immediately through the UI
 
-## 🛠️ Future Enhancements
+## 🛠️ Database Features
 
-### GUI Interface
-- Simple button-based integration with Windows File Explorer
-- Ability to trigger organization on-demand from context menu
+### File Type Mappings
+- Store unlimited file extensions and their corresponding categories
+- Quickly query category associations
+- Easily add or remove file types without code changes
 
-### Database Support
-- Store file type mappings in a database (e.g., SQLite, JSON)
-- Easily manage and extend supported file types without code changes
-- Support for thousands of file extension categories
+### Dynamic Category Management
+- Add new categories on-the-fly
+- Modify existing category definitions
+- Delete unused categories
+- Track category usage statistics
 
-### Custom Categories
-- User interface to define custom file type categories
-- Save custom configurations per directory
-- Support for multiple classification profiles
+### Benefits
+- **Scalability**: Support for thousands of file extension categories
+- **Flexibility**: No need to modify code to add new file types
+- **Persistence**: All configurations saved between sessions
+- **Performance**: Optimized queries for fast file lookups
 
 ## 💡 Example Workflow
 
@@ -153,6 +191,7 @@ Downloads/
 ├── photo.jpg             → Organized/Pictures_n_GIFS/
 ├── script.py             → Organized/Developer/
 ├── video.mp4             → Organized/Video/
+├── song.mp3              → Organized/Audio/
 └── random_file.txt       → Organized/Other/
 ```
 
@@ -174,4 +213,4 @@ This project is open source and available under the MIT License.
 
 ---
 
-**Note**: This is an actively developed project. Expect updates and improvements as we implement the planned features including GUI integration, database support, and custom category definitions!
+**Note**: This is an actively developed project. The latest version includes database implementation, a settings UI for easy configuration, and dynamic category management. Expect continued improvements and new features!
