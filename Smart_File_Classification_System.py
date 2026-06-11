@@ -1,113 +1,92 @@
-import time
 import os
+import sys
 import shutil
 import sqlite3 as sq
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from tkinter import messagebox
+import tkinter as tk
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH    = os.path.join(SCRIPT_DIR, "datatypes.db")
 
 
-def load_config(p="config.txt"):
-    config = {}
-    if not os.path.exists(p):
-        print("Config file not found exiting...")
-        exit()
-    
-    with open(p, 'r') as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            if '=' in line:
-                key, value = line.split('=', 1)
-                config[key.strip()] = os.path.expanduser(value.strip())
-    return config
-
-def get_types(f="datatypes.db"):
-    if not os.path.exists(f):
-        print("Error, datatypes file not found")
-        exit()
-    con = sq.connect(f)
-    cursor = con.cursor()
-    cursor.execute("""
+def get_types():
+    if not os.path.exists(DB_PATH):
+        show_popup("Error", f"Database not found:\n{DB_PATH}")
+        sys.exit(1)
+    con = sq.connect(DB_PATH)
+    cur = con.cursor()
+    cur.execute("""
         SELECT dt.Type, c.Category
         FROM DataTypes dt
         JOIN Categories c ON dt.Category_ID = c.Category_ID
     """)
-    types_dict = {row[0]: row[1] for row in cursor}
+    types_dict = {row[0]: row[1] for row in cur.fetchall()}
     con.close()
     return types_dict
 
-class FileHandler(FileSystemEventHandler):
-    def __init__(self, target_dir, types_dict):
-        super().__init__()
-        self.target_directory = target_dir
-        self.types_dict = types_dict
 
-    def on_created(self, event):
-        if event.is_directory:
-            return
-        fpath = event.src_path
-        fname = os.path.basename(fpath)
+def show_popup(title, message):
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showinfo(title, message)
+    root.destroy()
 
-        if fname.startswith('.'):
-            return
 
-        print(f"New file detected {fname}")
-        time.sleep(1)
-        self.process_file(fpath, fname)
+def organize(folder):
+    types_dict = get_types()
+    moved      = []
+    skipped    = []
 
-    def process_file(self, fpath, fname):
+    for fname in os.listdir(folder):
+        fpath = os.path.join(folder, fname)
+        if os.path.isdir(fpath) or fname.startswith('.'):
+            continue
+        _, ext   = os.path.splitext(fname)
+        ext      = ext.lower()
+        category = types_dict.get(ext, "Other")
+        dest_dir = os.path.join(folder, category)
         try:
-            _, ext = os.path.splitext(fname)
-            ext = ext.lower()
-            category = self.types_dic.get(ext)
-            if category is None:
-                category = 'Other'
-            dest = os.path.join(self.target_directory, category)
-            os.makedirs(dest, exist_ok=True)
-            shutil.move(fpath, os.path.join(dest, fname))
-            print(f"Moved {fname} to folder {dest}")
-
+            os.makedirs(dest_dir, exist_ok=True)
+            shutil.move(fpath, os.path.join(dest_dir, fname))
+            moved.append((fname, category))
         except Exception as e:
-            print(f"Exception {e} occured, couldn't move file")
-        
-    def organize_existing(self, watch_dir):
-        print("Organizing existing files...")
-        for fname in os.listdir(watch_dir):
-            fpath = os.path.join(watch_dir, fname)
-            if os.path.isfile(fpath) and not fname.startswith('.'):
-                self.process_file(fpath, fname)
-        print("Done organizing existing files.")
+            print(f"Could not move {fname}: {e}")
+            skipped.append(fname)
+
+    return moved, skipped
+
+
+def build_summary(folder, moved, skipped):
+    if not moved and not skipped:
+        return f"Nothing to organize in:\n{folder}"
+
+    by_category = {}
+    for fname, category in moved:
+        by_category.setdefault(category, []).append(fname)
+
+    lines = [f"Organized {len(moved)} file(s) in:\n{folder}\n"]
+    for category, files in sorted(by_category.items()):
+        lines.append(f"  {category} ({len(files)})")
+
+    if skipped:
+        lines.append(f"\nCould not move {len(skipped)} file(s):")
+        for fname in skipped:
+            lines.append(f"  {fname}")
+
+    return "\n".join(lines)
+
 
 if __name__ == "__main__":
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(script_dir, "config.txt")
-    
-    CONFIG = load_config(config_path)
-    WATCH_DIRECTORY = CONFIG.get("WATCH_DIRECTORY")
-    TARGET_DIRECTORY = CONFIG.get("TARGET_DIRECTORY")
-    TYPES_DICT = get_types()
-    if not WATCH_DIRECTORY or not TARGET_DIRECTORY:
-        print("either no watch directoy or target directory, or both DNE")
-        exit(1)
-        
-    os.makedirs(WATCH_DIRECTORY, exist_ok=True)
-    os.makedirs(TARGET_DIRECTORY, exist_ok=True)
+    if len(sys.argv) < 2:
+        show_popup("Smart Classifier", "Usage:\nRight-click a folder to organize it.")
+        sys.exit(0)
 
-    event_handler = FileHandler(TARGET_DIRECTORY,TYPES_DICT)
-    event_handler.organize_existing(WATCH_DIRECTORY)
-    observer = Observer()
-    observer.schedule(event_handler, WATCH_DIRECTORY, recursive=False)
+    folder = sys.argv[1]
 
-    observer.start()
-    print(f"Base Organizer Started!")
-    print(f"Watching: {WATCH_DIRECTORY}")
-    print(f"Routing to: {TARGET_DIRECTORY}")
-    
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\nKeyboard Interruption, stopping....")
-        observer.stop()
-    observer.join()
+    if not os.path.isdir(folder):
+        show_popup("Error", f"Folder not found:\n{folder}")
+        sys.exit(1)
+
+    moved, skipped = organize(folder)
+    summary        = build_summary(folder, moved, skipped)
+    show_popup("Smart Classifier — Done", summary)
